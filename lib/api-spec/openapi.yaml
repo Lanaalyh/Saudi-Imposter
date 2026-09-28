@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: game
+    description: Online game rooms
 paths:
   /healthz:
     get:
@@ -24,7 +26,143 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /categories:
+    get:
+      operationId: getCategories
+      tags: [game]
+      responses:
+        "200":
+          description: Available categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Category" }
+  /rooms:
+    post:
+      operationId: createRoom
+      tags: [game]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoomCreateInput" }
+      responses:
+        "201":
+          description: Room created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomSession" }
+  /rooms/{code}/join:
+    post:
+      operationId: joinRoom
+      tags: [game]
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlayerInput" }
+      responses:
+        "200":
+          description: Joined room
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomSession" }
+  /rooms/{code}:
+    get:
+      operationId: getRoom
+      tags: [game]
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+        - $ref: "#/components/parameters/PlayerToken"
+      responses:
+        "200":
+          description: Player-safe room state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomState" }
+  /rooms/{code}/start:
+    post:
+      operationId: startRound
+      tags: [game]
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenInput" }
+      responses:
+        "200":
+          description: New round
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomState" }
+  /rooms/{code}/clues:
+    post:
+      operationId: submitClue
+      tags: [game]
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClueInput" }
+      responses:
+        "200":
+          description: Updated round
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomState" }
+  /rooms/{code}/votes:
+    post:
+      operationId: submitVote
+      tags: [game]
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoteInput" }
+      responses:
+        "200":
+          description: Updated round
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomState" }
+  /rooms/{code}/messages:
+    post:
+      operationId: sendMessage
+      tags: [game]
+      parameters:
+        - $ref: "#/components/parameters/RoomCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MessageInput" }
+      responses:
+        "200":
+          description: Message sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomState" }
 components:
+  parameters:
+    RoomCode:
+      name: code
+      in: path
+      required: true
+      schema: { type: string }
+    PlayerToken:
+      name: token
+      in: query
+      required: true
+      schema: { type: string }
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +171,111 @@ components:
           type: string
       required:
         - status
+    Category:
+      type: object
+      required: [id, name, icon, description]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        icon: { type: string }
+        description: { type: string }
+    RoomCreateInput:
+      type: object
+      required: [name, category]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 24 }
+        category: { type: string }
+    PlayerInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 24 }
+    TokenInput:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+    ClueInput:
+      type: object
+      required: [token, text]
+      properties:
+        token: { type: string }
+        text: { type: string, minLength: 1, maxLength: 80 }
+    VoteInput:
+      type: object
+      required: [token, playerId]
+      properties:
+        token: { type: string }
+        playerId: { type: string }
+    MessageInput:
+      type: object
+      required: [token, text]
+      properties:
+        token: { type: string }
+        text: { type: string, minLength: 1, maxLength: 250 }
+    RoomSession:
+      type: object
+      required: [token, room]
+      properties:
+        token: { type: string }
+        room: { $ref: "#/components/schemas/RoomState" }
+    Player:
+      type: object
+      required: [id, name, isHost, hasClue, hasVoted]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        isHost: { type: boolean }
+        hasClue: { type: boolean }
+        hasVoted: { type: boolean }
+    Clue:
+      type: object
+      required: [playerId, name, text]
+      properties:
+        playerId: { type: string }
+        name: { type: string }
+        text: { type: string }
+    Message:
+      type: object
+      required: [id, playerId, name, text, createdAt]
+      properties:
+        id: { type: string }
+        playerId: { type: string }
+        name: { type: string }
+        text: { type: string }
+        createdAt: { type: string }
+    Result:
+      type: object
+      required: [imposterId, word, accusedId, found]
+      properties:
+        imposterId: { type: string }
+        word: { type: string }
+        accusedId: { type: ["string", "null"] }
+        found: { type: boolean }
+    RoomState:
+      type: object
+      required: [code, category, phase, round, selfId, isHost, players, clues, messages, voteCount]
+      properties:
+        code: { type: string }
+        category: { type: string }
+        phase: { type: string, enum: [lobby, clues, voting, result] }
+        round: { type: integer }
+        selfId: { type: string }
+        isHost: { type: boolean }
+        role: { type: ["string", "null"], description: "Only the requesting player's role: imposter or player" }
+        word: { type: ["string", "null"], description: "Visible to non-imposters, or to everyone after result" }
+        players:
+          type: array
+          items: { $ref: "#/components/schemas/Player" }
+        clues:
+          type: array
+          items: { $ref: "#/components/schemas/Clue" }
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/Message" }
+        voteCount: { type: integer }
+        result:
+          oneOf:
+            - { $ref: "#/components/schemas/Result" }
+            - { type: "null" }
 
